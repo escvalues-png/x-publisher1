@@ -57,27 +57,28 @@ async function markAsPublished(id) {
 }
 
 // ===============================
-// LOGIN
+// LOGIN (X 2026)
 // ===============================
 async function login(page) {
     log("Iniciando sesión en X...");
 
     try {
-        // Flujo nuevo de login
-        await page.goto("https://x.com/i/flow/login", { waitUntil: "networkidle2", timeout: 30000 });
+        await page.goto("https://x.com/i/flow/login", {
+            waitUntil: "networkidle2",
+            timeout: 30000
+        });
 
-        // Paso 1: campo de usuario
-        await page.waitForSelector('input[autocomplete="username"]', { timeout: 20000 });
+        // Paso 1: usuario
+        await page.waitForSelector('input[autocomplete="username"]', { timeout: 25000 });
         await page.type('input[autocomplete="username"]', process.env.X_USERNAME);
         await page.keyboard.press("Enter");
         await page.waitForTimeout(2000);
 
-        // Paso 2: campo de contraseña
-        await page.waitForSelector('input[autocomplete="current-password"]', { timeout: 20000 });
+        // Paso 2: contraseña
+        await page.waitForSelector('input[autocomplete="current-password"]', { timeout: 25000 });
         await page.type('input[autocomplete="current-password"]', process.env.X_PASSWORD);
         await page.keyboard.press("Enter");
 
-        // Esperar navegación
         await page.waitForNavigation({ timeout: 30000 });
 
         log("Sesión iniciada correctamente.");
@@ -96,7 +97,6 @@ async function downloadImage(url) {
 
     try {
         const response = await fetch(url);
-
         if (!response.ok) throw new Error("No se pudo descargar la imagen.");
 
         const buffer = await response.arrayBuffer();
@@ -120,7 +120,6 @@ async function downloadVideo(url) {
 
     try {
         const response = await fetch(url);
-
         if (!response.ok) throw new Error("No se pudo descargar el video.");
 
         const buffer = await response.arrayBuffer();
@@ -209,21 +208,17 @@ async function publishPoll(page, text, poll) {
     await page.waitForSelector('div[role="textbox"]');
     await page.type('div[role="textbox"]', text);
 
-    // Abrir menú de encuesta
     await page.waitForSelector('div[data-testid="poll"]');
     await page.click('div[data-testid="poll"]');
 
-    // Rellenar opciones
     for (let i = 0; i < poll.options.length; i++) {
         await page.waitForSelector(`input[data-testid="pollOption${i}"]`);
         await page.type(`input[data-testid="pollOption${i}"]`, poll.options[i]);
     }
 
-    // Duración
     await page.waitForSelector('select[data-testid="pollDuration"]');
     await page.select('select[data-testid="pollDuration"]', poll.duration.toString());
 
-    // Publicar
     await page.waitForSelector('button[data-testid="tweetButton"]');
     await page.click('button[data-testid="tweetButton"]');
 
@@ -279,11 +274,35 @@ async function main() {
         log(`Posts encontrados: ${posts.length}`);
 
         const browser = await puppeteer.launch({
-            headless: true,
-            args: ["--no-sandbox"]
+            headless: false,
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-blink-features=AutomationControlled",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--window-size=1280,800",
+                "--lang=es-ES"
+            ],
+            defaultViewport: {
+                width: 1280,
+                height: 800
+            }
         });
 
         const page = await browser.newPage();
+
+        await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(navigator, "webdriver", { get: () => false });
+            Object.defineProperty(navigator, "plugins", { get: () => [1, 2, 3] });
+            Object.defineProperty(navigator, "languages", { get: () => ["es-ES", "es"] });
+            Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 4 });
+        });
+
+        await page.setUserAgent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        );
 
         await login(page);
 
@@ -296,7 +315,6 @@ async function main() {
                     continue;
                 }
 
-                // PUBLICACIÓN PRINCIPAL
                 if (post.poll) {
                     await publishPoll(page, post.text, post.poll);
 
@@ -314,7 +332,6 @@ async function main() {
                     await publishText(page, post.text);
                 }
 
-                // HILO
                 if (post.thread && post.thread.length > 0) {
                     log(`Publicando hilo de ${post.thread.length} tweets...`);
 
