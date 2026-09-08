@@ -1,1 +1,1 @@
-publish.js
+console.log("Servidor auxiliar funcionando correctamente.");
