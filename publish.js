@@ -277,7 +277,7 @@ async function main() {
         // NAVEGADOR REMOTO (BROWSERLESS)
         // ===============================
         const browser = await puppeteer.connect({
-            browserWSEndpoint: process.env.BROWSERLESS_URL
+            browserWSEndpoint: `${process.env.BROWSERLESS_URL}`
         });
 
         const page = await browser.newPage();
