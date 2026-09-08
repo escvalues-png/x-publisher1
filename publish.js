@@ -63,16 +63,17 @@ async function login(page) {
     log("Iniciando sesión en X...");
 
     try {
-        await page.goto("https://x.com/login", { waitUntil: "networkidle2", timeout: 30000 });
+        // Flujo nuevo de login
+        await page.goto("https://x.com/i/flow/login", { waitUntil: "networkidle2", timeout: 30000 });
 
         // Paso 1: campo de usuario
-        await page.waitForSelector('input[autocomplete="username"]', { timeout: 15000 });
+        await page.waitForSelector('input[autocomplete="username"]', { timeout: 20000 });
         await page.type('input[autocomplete="username"]', process.env.X_USERNAME);
         await page.keyboard.press("Enter");
         await page.waitForTimeout(2000);
 
         // Paso 2: campo de contraseña
-        await page.waitForSelector('input[autocomplete="current-password"]', { timeout: 15000 });
+        await page.waitForSelector('input[autocomplete="current-password"]', { timeout: 20000 });
         await page.type('input[autocomplete="current-password"]', process.env.X_PASSWORD);
         await page.keyboard.press("Enter");
 
