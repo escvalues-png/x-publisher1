@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import dotenv from "dotenv";
+import puppeteer from "puppeteer";
 
 dotenv.config();
 
@@ -21,7 +22,29 @@ async function getPendingPosts() {
 }
 
 // ===============================
-// 2. MAIN LOOP
+// 2. LOGIN TO X
+// ===============================
+async function login(page) {
+    console.log("Iniciando sesión en X...");
+
+    await page.goto("https://x.com/login", { waitUntil: "networkidle2" });
+
+    await page.waitForSelector('input[name="text"]');
+    await page.type('input[name="text"]', process.env.X_USERNAME);
+    await page.keyboard.press("Enter");
+
+    await page.waitForTimeout(2000);
+
+    await page.waitForSelector('input[name="password"]');
+    await page.type('input[name="password"]', process.env.X_PASSWORD);
+    await page.keyboard.press("Enter");
+
+    await page.waitForNavigation();
+    console.log("Sesión iniciada correctamente.");
+}
+
+// ===============================
+// 3. MAIN LOOP
 // ===============================
 async function main() {
     console.log("Servidor auxiliar iniciado.");
@@ -34,6 +57,21 @@ async function main() {
     }
 
     console.log("Posts encontrados:", posts.length);
+
+    // Abrir navegador
+    const browser = await puppeteer.launch({
+        headless: true,
+        args: ["--no-sandbox"]
+    });
+
+    const page = await browser.newPage();
+
+    // Iniciar sesión
+    await login(page);
+
+    console.log("Todo listo para publicar (aún no publicamos).");
+
+    await browser.close();
 }
 
 main();
