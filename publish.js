@@ -22,6 +22,25 @@ async function getPendingPosts() {
 }
 
 // ===============================
+// DESCARGAR IMAGEN
+// ===============================
+import fs from "fs";
+import path from "path";
+
+async function downloadImage(url) {
+    const filePath = path.join("/tmp", "image_to_upload.jpg");
+
+    const response = await fetch(url);
+    const buffer = await response.arrayBuffer();
+
+    fs.writeFileSync(filePath, Buffer.from(buffer));
+
+    console.log("Imagen descargada:", filePath);
+    return filePath;
+}
+
+
+// ===============================
 // 2. LOGIN TO X
 // ===============================
 async function login(page) {
@@ -63,6 +82,31 @@ async function publishText(page, text) {
     console.log("Texto publicado correctamente.");
 }
 
+// ===============================
+// PUBLICAR IMAGEN + TEXTO
+// ===============================
+async function publishImage(page, text, imagePath) {
+    console.log("Publicando imagen...");
+
+    // Abrir composer
+    await page.goto("https://x.com/compose/tweet", { waitUntil: "networkidle2" });
+
+    // Subir imagen
+    const input = await page.$('input[type="file"]');
+    await input.uploadFile(imagePath);
+
+    console.log("Imagen subida.");
+
+    // Escribir texto
+    await page.waitForSelector('div[role="textbox"]');
+    await page.type('div[role="textbox"]', text);
+
+    // Publicar
+    await page.waitForSelector('button[data-testid="tweetButton"]');
+    await page.click('button[data-testid="tweetButton"]');
+
+    console.log("Imagen + texto publicado correctamente.");
+}
 
 // ===============================
 // 3. MAIN LOOP
@@ -88,11 +132,20 @@ async function main() {
 
     await login(page);
 
-    console.log("Publicando primer post...");
+    const post = posts[0];
 
-    await publishText(page, posts[0].text);
+    if (post.image_url) {
+        console.log("Post con imagen detectado.");
 
-    console.log("Post publicado.");
+        const imagePath = await downloadImage(post.image_url);
+
+        await publishImage(page, post.text, imagePath);
+
+        fs.unlinkSync(imagePath);
+    } else {
+        console.log("Post sin imagen. Publicando texto...");
+        await publishText(page, post.text);
+    }
 
     await browser.close();
 }
