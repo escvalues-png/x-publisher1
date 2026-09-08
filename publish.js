@@ -44,6 +44,27 @@ async function login(page) {
 }
 
 // ===============================
+// 3. PUBLISH TEXT ONLY
+// ===============================
+async function publishText(page, text) {
+    console.log("Publicando texto...");
+
+    // Abrir el composer
+    await page.goto("https://x.com/compose/tweet", { waitUntil: "networkidle2" });
+
+    // Escribir el texto
+    await page.waitForSelector('div[role="textbox"]');
+    await page.type('div[role="textbox"]', text);
+
+    // Publicar
+    await page.waitForSelector('button[data-testid="tweetButton"]');
+    await page.click('button[data-testid="tweetButton"]');
+
+    console.log("Texto publicado correctamente.");
+}
+
+
+// ===============================
 // 3. MAIN LOOP
 // ===============================
 async function main() {
@@ -58,7 +79,6 @@ async function main() {
 
     console.log("Posts encontrados:", posts.length);
 
-    // Abrir navegador
     const browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox"]
@@ -66,12 +86,16 @@ async function main() {
 
     const page = await browser.newPage();
 
-    // Iniciar sesión
     await login(page);
 
-    console.log("Todo listo para publicar (aún no publicamos).");
+    console.log("Publicando primer post...");
+
+    await publishText(page, posts[0].text);
+
+    console.log("Post publicado.");
 
     await browser.close();
 }
+
 
 main();
