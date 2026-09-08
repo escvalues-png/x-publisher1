@@ -71,6 +71,82 @@ async function login(page) {
         // Paso 1: usuario
         await page.waitForSelector('input[autocomplete="username"]', { timeout: 25000 });
         await page.type('input[autocomplete="username"]', process.env.X_USERNAME);
+        await page.keyboard.press("EnterAquí va, Yago—tu `publish.js` completo, adaptado a navegador remoto (Browserless), manteniendo toda tu lógica tal cual:
+
+```js
+import fetch from "node-fetch";
+import dotenv from "dotenv";
+import puppeteer from "puppeteer";
+import fs from "fs";
+import path from "path";
+
+dotenv.config();
+
+// ===============================
+// LOGGER
+// ===============================
+function log(msg) {
+    const time = new Date().toISOString();
+    console.log(`[${time}] ${msg}`);
+}
+
+// ===============================
+// GET PENDING POSTS
+// ===============================
+async function getPendingPosts() {
+    const url = `${process.env.API_URL}/get_pending_posts.php?token=${process.env.API_TOKEN}`;
+
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        log("Posts pendientes recibidos.");
+        return data;
+    } catch (err) {
+        log("ERROR AL OBTENER POSTS:");
+        log(err.message);
+        return [];
+    }
+}
+
+// ===============================
+// MARCAR COMO PUBLICADO
+// ===============================
+async function markAsPublished(id) {
+    const url = `${process.env.API_URL}/mark_as_published.php`;
+
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                id: id,
+                token: process.env.API_TOKEN
+            })
+        });
+
+        const data = await res.json();
+        log(`Post ${id} marcado como publicado.`);
+    } catch (err) {
+        log("ERROR AL MARCAR COMO PUBLICADO:");
+        log(err.message);
+    }
+}
+
+// ===============================
+// LOGIN (X 2026)
+// ===============================
+async function login(page) {
+    log("Iniciando sesión en X...");
+
+    try {
+        await page.goto("https://x.com/i/flow/login", {
+            waitUntil: "networkidle2",
+            timeout: 30000
+        });
+
+        // Paso 1: usuario
+        await page.waitForSelector('input[autocomplete="username"]', { timeout: 25000 });
+        await page.type('input[autocomplete="username"]', process.env.X_USERNAME);
         await page.keyboard.press("Enter");
         await page.waitForTimeout(2000);
 
@@ -273,21 +349,9 @@ async function main() {
 
         log(`Posts encontrados: ${posts.length}`);
 
-        const browser = await puppeteer.launch({
-            headless: false,
-            args: [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-blink-features=AutomationControlled",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--window-size=1280,800",
-                "--lang=es-ES"
-            ],
-            defaultViewport: {
-                width: 1280,
-                height: 800
-            }
+        // Navegador remoto (Browserless)
+        const browser = await puppeteer.connect({
+            browserWSEndpoint: process.env.BROWSERLESS_URL
         });
 
         const page = await browser.newPage();
