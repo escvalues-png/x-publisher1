@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 import dotenv from "dotenv";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
 import fs from "fs";
 import path from "path";
 
@@ -53,39 +53,6 @@ async function markAsPublished(id) {
     } catch (err) {
         log("ERROR AL MARCAR COMO PUBLICADO:");
         log(err.message);
-    }
-}
-
-// ===============================
-// LOGIN (X 2026)
-// ===============================
-async function login(page) {
-    log("Iniciando sesión en X...");
-
-    try {
-        await page.goto("https://x.com/i/flow/login", {
-            waitUntil: "networkidle2",
-            timeout: 30000
-        });
-
-        // Paso 1: usuario
-        await page.waitForSelector('input[autocomplete="username"]', { timeout: 25000 });
-        await page.type('input[autocomplete="username"]', process.env.X_USERNAME);
-        await page.keyboard.press("Enter");
-        await page.waitForTimeout(2000);
-
-        // Paso 2: contraseña
-        await page.waitForSelector('input[autocomplete="current-password"]', { timeout: 25000 });
-        await page.type('input[autocomplete="current-password"]', process.env.X_PASSWORD);
-        await page.keyboard.press("Enter");
-
-        await page.waitForNavigation({ timeout: 30000 });
-
-        log("Sesión iniciada correctamente.");
-    } catch (err) {
-        log("ERROR EN LOGIN:");
-        log(err.message);
-        throw err;
     }
 }
 
@@ -277,24 +244,17 @@ async function main() {
         // NAVEGADOR REMOTO (BROWSERLESS)
         // ===============================
         const browser = await puppeteer.connect({
-            browserWSEndpoint: `${process.env.BROWSERLESS_URL}`
+            browserWSEndpoint: process.env.BROWSERLESS_URL
         });
 
         const page = await browser.newPage();
-
-        await page.evaluateOnNewDocument(() => {
-            Object.defineProperty(navigator, "webdriver", { get: () => false });
-            Object.defineProperty(navigator, "plugins", { get: () => [1, 2, 3] });
-            Object.defineProperty(navigator, "languages", { get: () => ["es-ES", "es"] });
-            Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 4 });
-        });
 
         await page.setUserAgent(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         );
 
-        await login(page);
+        // YA NO HAY LOGIN — EL PERFIL YA ESTÁ AUTENTICADO
 
         for (const post of posts) {
             try {
