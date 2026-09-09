@@ -1,12 +1,36 @@
 import puppeteer from "puppeteer-core";
 import dotenv from "dotenv";
 import fs from "fs";
+import FormData from "form-data";
+import fetch from "node-fetch";
 
 dotenv.config();
 
 function log(msg) {
     const time = new Date().toISOString();
     console.log(`[${time}] ${msg}`);
+}
+
+// ===============================
+// SUBIR IMAGEN AL SERVIDOR
+// ===============================
+async function uploadDebugImage(localPath, remoteName) {
+    try {
+        const form = new FormData();
+        form.append("token", process.env.API_TOKEN);
+        form.append("file", fs.createReadStream(localPath), remoteName);
+
+        const res = await fetch(`${process.env.API_URL}/upload_debug.php`, {
+            method: "POST",
+            body: form
+        });
+
+        const data = await res.json();
+        log(`Imagen subida (${remoteName}): ${JSON.stringify(data)}`);
+    } catch (err) {
+        log("ERROR SUBIENDO IMAGEN:");
+        log(err.message);
+    }
 }
 
 async function main() {
@@ -26,9 +50,14 @@ async function main() {
     log("Abriendo X…");
     await page.goto("https://x.com/home", { waitUntil: "networkidle2" });
 
-    // Captura de pantalla del home
-    await page.screenshot({ path: "/tmp/home.png" });
+    // ===============================
+    // CAPTURA HOME
+    // ===============================
+    const homePath = "/tmp/home.png";
+    await page.screenshot({ path: homePath });
     log("Captura guardada: /tmp/home.png");
+
+    await uploadDebugImage(homePath, "home.png");
 
     // Comprobar si hay sesión
     const loggedIn = await page.$('a[href="/compose/tweet"]');
@@ -36,18 +65,24 @@ async function main() {
     if (!loggedIn) {
         log("❌ No parece haber sesión iniciada en X.");
         log("Esto explica por qué NO aparece el botón de encuesta.");
+
         await browser.close();
         return;
     }
 
     log("✔ Sesión detectada.");
 
-    // Ir al composer
+    // ===============================
+    // CAPTURA COMPOSER
+    // ===============================
     log("Abriendo composer…");
     await page.goto("https://x.com/compose/tweet", { waitUntil: "networkidle2" });
 
-    await page.screenshot({ path: "/tmp/composer.png" });
+    const composerPath = "/tmp/composer.png";
+    await page.screenshot({ path: composerPath });
     log("Captura guardada: /tmp/composer.png");
+
+    await uploadDebugImage(composerPath, "composer.png");
 
     // Comprobar si el composer es completo
     const fullComposer = await page.$('div[data-testid="toolBar"]');
@@ -59,6 +94,7 @@ async function main() {
         log("- Perfil de Browserless sin cookies");
         log("- Sesión corrupta");
         log("- Cuenta sin encuestas activadas");
+
         await browser.close();
         return;
     }
