@@ -36,10 +36,8 @@ async function getPendingPosts() {
 // MARCAR COMO PUBLICADO
 // ===============================
 async function markAsPublished(id) {
-    const url = `${process.env.API_URL}/mark_as_published.php`;
-
     try {
-        const res = await fetch(url, {
+        const res = await fetch(`${process.env.API_URL}/update_post_status.php`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -48,8 +46,9 @@ async function markAsPublished(id) {
             })
         });
 
-        await res.json();
-        log(`Post ${id} marcado como publicado.`);
+        const data = await res.json();
+        log(`Post ${id} marcado como publicado. Respuesta: ${JSON.stringify(data)}`);
+
     } catch (err) {
         log("ERROR AL MARCAR COMO PUBLICADO:");
         log(err.message);
