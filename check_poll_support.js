@@ -1,8 +1,7 @@
 import puppeteer from "puppeteer-core";
 import dotenv from "dotenv";
 import fs from "fs";
-import FormData from "form-data";
-import fetch from "node-fetch";
+import fetch, { FormData, Blob } from "node-fetch";
 
 dotenv.config();
 
@@ -16,9 +15,12 @@ function log(msg) {
 // ===============================
 async function uploadDebugImage(localPath, remoteName) {
     try {
+        const buffer = fs.readFileSync(localPath);
+        const blob = new Blob([buffer]);
+
         const form = new FormData();
         form.append("token", process.env.API_TOKEN);
-        form.append("file", fs.createReadStream(localPath), remoteName);
+        form.append("file", blob, remoteName);
 
         const res = await fetch(`${process.env.API_URL}/upload_debug.php`, {
             method: "POST",
