@@ -85,7 +85,7 @@ async function downloadVideo(url) {
     const filePath = path.join("/tmp", "video_to_upload.mp4");
 
     try {
-        const response = await fetch(url);
+        const response = await.fetch(url);
         if (!response.ok) throw new Error("No se pudo descargar el video.");
 
         const buffer = await response.arrayBuffer();
@@ -164,7 +164,7 @@ async function publishVideo(page, text, videoPath) {
 }
 
 // ===============================
-// PUBLICAR ENCUESTA
+// PUBLICAR ENCUESTA (ACTUALIZADO 2026)
 // ===============================
 async function publishPoll(page, text, poll) {
     log("Publicando encuesta...");
@@ -174,17 +174,30 @@ async function publishPoll(page, text, poll) {
     await page.waitForSelector('div[role="textbox"]');
     await page.type('div[role="textbox"]', text);
 
-    await page.waitForSelector('div[data-testid="poll"]');
-    await page.click('div[data-testid="poll"]');
+    // NUEVO SELECTOR 2026
+    let pollButton = await page.$('div[data-testid="addPoll"]');
 
+    if (!pollButton) {
+        pollButton = await page.$('button[data-testid="addPoll"]');
+    }
+
+    if (!pollButton) {
+        throw new Error("No se encontró el botón de encuesta en X.");
+    }
+
+    await pollButton.click();
+
+    // Rellenar opciones
     for (let i = 0; i < poll.options.length; i++) {
         await page.waitForSelector(`input[data-testid="pollOption${i}"]`);
         await page.type(`input[data-testid="pollOption${i}"]`, poll.options[i]);
     }
 
+    // Duración
     await page.waitForSelector('select[data-testid="pollDuration"]');
     await page.select('select[data-testid="pollDuration"]', poll.duration.toString());
 
+    // Publicar
     await page.waitForSelector('button[data-testid="tweetButton"]');
     await page.click('button[data-testid="tweetButton"]');
 
@@ -239,9 +252,6 @@ async function main() {
 
         log(`Posts encontrados: ${posts.length}`);
 
-        // ===============================
-        // NAVEGADOR REMOTO (BROWSERLESS)
-        // ===============================
         const browser = await puppeteer.connect({
             browserWSEndpoint: process.env.BROWSERLESS_URL
         });
@@ -253,16 +263,9 @@ async function main() {
             "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         );
 
-        // YA NO HAY LOGIN — EL PERFIL YA ESTÁ AUTENTICADO
-
         for (const post of posts) {
             try {
                 log(`Publicando post ID ${post.id}`);
-
-                if (!post.text || post.text.trim() === "") {
-                    log(`ERROR: El post ${post.id} no tiene texto. Saltando.`);
-                    continue;
-                }
 
                 if (post.poll) {
                     await publishPoll(page, post.text, post.poll);
@@ -309,8 +312,6 @@ async function main() {
                 }
 
                 await markAsPublished(post.id);
-                log(`Post ${post.id} marcado como publicado.`);
-
                 await page.waitForTimeout(2000);
 
             } catch (err) {
