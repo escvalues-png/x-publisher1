@@ -85,7 +85,7 @@ async function downloadVideo(url) {
     const filePath = path.join("/tmp", "video_to_upload.mp4");
 
     try {
-        const response = await.fetch(url);
+        const response = await fetch(url);
         if (!response.ok) throw new Error("No se pudo descargar el video.");
 
         const buffer = await response.arrayBuffer();
