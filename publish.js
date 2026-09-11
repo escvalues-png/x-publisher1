@@ -46,8 +46,8 @@ async function markAsPublished(id) {
             })
         });
 
-        const data = await res.json();
-        log(`Post ${id} marcado como publicado. Respuesta: ${JSON.stringify(data)}`);
+        const text = await res.text();   // ← CAMBIO IMPORTANTE
+        log(`Post ${id} marcado como publicado. Respuesta: ${text}`);
 
     } catch (err) {
         log("ERROR AL MARCAR COMO PUBLICADO:");
