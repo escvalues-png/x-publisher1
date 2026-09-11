@@ -14,16 +14,21 @@ function log(msg) {
     console.log(`[${time}] ${msg}`);
 }
 
+function wait(ms) {
+    return new Promise(r => setTimeout(r, ms));
+}
+
 // ===============================
 // GET PENDING POSTS
 // ===============================
 async function getPendingPosts() {
     const url = `${process.env.API_URL}/get_pending_posts.php?token=${process.env.API_TOKEN}`;
+    log(`Solicitando posts pendientes a: ${url}`);
 
     try {
         const res = await fetch(url);
         const data = await res.json();
-        log("Posts pendientes recibidos.");
+        log(`Posts pendientes recibidos: ${JSON.stringify(data)}`);
         return data;
     } catch (err) {
         log("ERROR AL OBTENER POSTS:");
@@ -33,21 +38,28 @@ async function getPendingPosts() {
 }
 
 // ===============================
-// MARCAR COMO PUBLICADO (ELIMINAR)
+// MARCAR COMO PUBLICADO
 // ===============================
 async function markAsPublished(id) {
+    const url = `${process.env.API_URL}/mark_as_published.php`;
+    log(`Marcando como publicado ID=${id} en ${url}`);
+
     try {
-        const res = await fetch(`${process.env.API_URL}/mark_as_published.php`, {
+        const payload = {
+            id: id,
+            token: process.env.API_TOKEN
+        };
+
+        log(`Payload enviado: ${JSON.stringify(payload)}`);
+
+        const res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                id: id,
-                token: process.env.API_TOKEN
-            })
+            body: JSON.stringify(payload)
         });
 
-        const text = await res.text(); // ← evitar error JSON
-        log(`Post ${id} marcado como publicado. Respuesta: ${text}`);
+        const text = await res.text();
+        log(`Respuesta del servidor: ${text}`);
 
     } catch (err) {
         log("ERROR AL MARCAR COMO PUBLICADO:");
@@ -59,16 +71,19 @@ async function markAsPublished(id) {
 // DESCARGAR IMAGEN
 // ===============================
 async function downloadImage(url) {
+    log(`Descargando imagen desde: ${url}`);
     const filePath = path.join("/tmp", "image_to_upload.jpg");
 
     try {
         const response = await fetch(url);
+        log(`Estado HTTP imagen: ${response.status}`);
+
         if (!response.ok) throw new Error("No se pudo descargar la imagen.");
 
         const buffer = await response.arrayBuffer();
         fs.writeFileSync(filePath, Buffer.from(buffer));
 
-        log("Imagen descargada correctamente.");
+        log(`Imagen guardada en: ${filePath}`);
         return filePath;
 
     } catch (err) {
@@ -82,16 +97,19 @@ async function downloadImage(url) {
 // DESCARGAR VIDEO
 // ===============================
 async function downloadVideo(url) {
+    log(`Descargando video desde: ${url}`);
     const filePath = path.join("/tmp", "video_to_upload.mp4");
 
     try {
         const response = await fetch(url);
+        log(`Estado HTTP video: ${response.status}`);
+
         if (!response.ok) throw new Error("No se pudo descargar el video.");
 
         const buffer = await response.arrayBuffer();
         fs.writeFileSync(filePath, Buffer.from(buffer));
 
-        log("Video descargado correctamente.");
+        log(`Video guardado en: ${filePath}`);
         return filePath;
 
     } catch (err) {
@@ -105,120 +123,167 @@ async function downloadVideo(url) {
 // BOTÓN DE PUBLICAR (2026)
 // ===============================
 async function getTweetButton(page) {
-    return (
-        await page.$('button[data-testid="tweetButton"]') ||
-        await page.$('button[data-testid="tweetButtonInline"]') ||
-        await page.$('div[data-testid="tweetButton"]') ||
-        await page.$('div[data-testid="tweetButtonInline"]') ||
-        await page.$('button[aria-label="Post"]')
-    );
+    log("Buscando botón de publicar...");
+
+    const selectors = [
+        'button[data-testid="tweetButton"]',
+        'button[data-testid="tweetButtonInline"]',
+        'div[data-testid="tweetButton"]',
+        'div[data-testid="tweetButtonInline"]',
+        'button[aria-label="Post"]',
+        'div[aria-label="Post"]'
+    ];
+
+    for (const sel of selectors) {
+        log(`Probando selector: ${sel}`);
+        const btn = await page.$(sel);
+        if (btn) {
+            log(`Botón encontrado con selector: ${sel}`);
+            return btn;
+        }
+    }
+
+    log("❌ Ningún selector coincidió con el botón de publicar.");
+    return null;
 }
 
 // ===============================
 // PUBLICAR TEXTO
 // ===============================
 async function publishText(page, text) {
-    log("Publicando texto...");
+    log("=== PUBLICANDO TEXTO ===");
+    log(`Texto a publicar: "${text}"`);
 
     await page.goto("https://x.com/compose/tweet", { waitUntil: "networkidle2" });
+    log(`URL actual: ${page.url()}`);
 
+    log("Esperando textbox...");
     await page.waitForSelector('div[role="textbox"]');
+    log("Textbox encontrado.");
+
     await page.type('div[role="textbox"]', text);
+    log("Texto escrito en el composer.");
 
     const tweetButton = await getTweetButton(page);
     if (!tweetButton) throw new Error("No se encontró el botón de publicar en X.");
 
+    log("Haciendo click en el botón de publicar...");
     await tweetButton.click();
 
-    await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
-
-    log("Texto publicado correctamente.");
+    log("Esperando navegación después de publicar...");
+    try {
+        await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
+        log("Navegación detectada. Tweet publicado.");
+    } catch (err) {
+        log("❌ ERROR: X NO NAVEGÓ DESPUÉS DEL CLICK.");
+        log("Esto significa que el tweet NO se publicó.");
+        throw err;
+    }
 }
 
 // ===============================
 // PUBLICAR IMAGEN
 // ===============================
 async function publishImage(page, text, imagePath) {
-    log("Publicando imagen...");
+    log("=== PUBLICANDO IMAGEN ===");
+    log(`Texto: "${text}"`);
+    log(`Imagen: ${imagePath}`);
 
     await page.goto("https://x.com/compose/tweet", { waitUntil: "networkidle2" });
 
     const input = await page.$('input[type="file"]');
+    log("Subiendo imagen...");
     await input.uploadFile(imagePath);
 
     log("Imagen subida.");
 
     await page.waitForSelector('div[role="textbox"]');
     await page.type('div[role="textbox"]', text);
+    log("Texto escrito.");
 
     const tweetButton = await getTweetButton(page);
     if (!tweetButton) throw new Error("No se encontró el botón de publicar en X.");
 
+    log("Click en publicar...");
     await tweetButton.click();
 
+    log("Esperando navegación...");
     await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
 
-    log("Imagen + texto publicado correctamente.");
+    log("Imagen + texto publicado.");
 }
 
 // ===============================
 // PUBLICAR VIDEO
 // ===============================
 async function publishVideo(page, text, videoPath) {
-    log("Publicando video...");
+    log("=== PUBLICANDO VIDEO ===");
+    log(`Texto: "${text}"`);
+    log(`Video: ${videoPath}`);
 
     await page.goto("https://x.com/compose/tweet", { waitUntil: "networkidle2" });
 
     const input = await page.$('input[type="file"]');
+    log("Subiendo video...");
     await input.uploadFile(videoPath);
 
-    log("Video subido. Procesando...");
-    await new Promise(r => setTimeout(r, 8000));
+    log("Video subido. Esperando procesamiento...");
+    await wait(8000);
 
     await page.waitForSelector('div[role="textbox"]');
     await page.type('div[role="textbox"]', text);
+    log("Texto escrito.");
 
     const tweetButton = await getTweetButton(page);
     if (!tweetButton) throw new Error("No se encontró el botón de publicar en X.");
 
+    log("Click en publicar...");
     await tweetButton.click();
 
+    log("Esperando navegación...");
     await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
 
-    log("Video + texto publicado correctamente.");
+    log("Video + texto publicado.");
 }
 
 // ===============================
 // PUBLICAR RESPUESTA EN HILO
 // ===============================
 async function publishReply(page, text, imagePath = null, videoPath = null) {
-    log("Publicando respuesta en hilo...");
+    log("=== PUBLICANDO RESPUESTA EN HILO ===");
+    log(`Texto: "${text}"`);
 
     await page.waitForSelector('div[data-testid="reply"]');
     await page.click('div[data-testid="reply"]');
+    log("Click en botón de responder.");
 
     await page.waitForSelector('div[role="textbox"]');
 
     if (imagePath) {
         const input = await page.$('input[type="file"]');
+        log("Subiendo imagen en hilo...");
         await input.uploadFile(imagePath);
-        log("Imagen subida en hilo.");
+        log("Imagen subida.");
     }
 
     if (videoPath) {
         const input = await page.$('input[type="file"]');
+        log("Subiendo video en hilo...");
         await input.uploadFile(videoPath);
-        log("Video subido en hilo.");
-        await new Promise(r => setTimeout(r, 8000));
+        log("Video subido.");
+        await wait(8000);
     }
 
     await page.type('div[role="textbox"]', text);
+    log("Texto escrito en respuesta.");
 
     const tweetButton = await getTweetButton(page);
     if (!tweetButton) throw new Error("No se encontró el botón de publicar en X.");
 
+    log("Click en publicar respuesta...");
     await tweetButton.click();
 
+    log("Esperando navegación...");
     await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
 
     log("Respuesta publicada.");
@@ -228,7 +293,7 @@ async function publishReply(page, text, imagePath = null, videoPath = null) {
 // MAIN FINAL
 // ===============================
 async function main() {
-    log("Bot iniciado.");
+    log("=== BOT INICIADO ===");
 
     try {
         const posts = await getPendingPosts();
@@ -251,9 +316,11 @@ async function main() {
             "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         );
 
+        log("Página creada. Sesión debería estar activa.");
+
         for (const post of posts) {
             try {
-                log(`Publicando post ID ${post.id}`);
+                log(`=== PUBLICANDO POST ID ${post.id} ===`);
 
                 if (post.video_url) {
                     const videoPath = await downloadVideo(post.video_url);
@@ -285,7 +352,7 @@ async function main() {
                             if (imagePath) fs.unlinkSync(imagePath);
                             if (videoPath) fs.unlinkSync(videoPath);
 
-                            await new Promise(r => setTimeout(r, 2000));
+                            await wait(2000);
 
                         } catch (err) {
                             log("ERROR PUBLICANDO TWEET DEL HILO:");
@@ -297,7 +364,7 @@ async function main() {
                 }
 
                 await markAsPublished(post.id);
-                await new Promise(r => setTimeout(r, 2000));
+                await wait(2000);
 
             } catch (err) {
                 log(`ERROR PUBLICANDO POST ${post.id}:`);
@@ -306,7 +373,7 @@ async function main() {
         }
 
         await browser.close();
-        log("Bot finalizado correctamente.");
+        log("=== BOT FINALIZADO ===");
 
     } catch (err) {
         log("ERROR CRÍTICO EN MAIN:");
