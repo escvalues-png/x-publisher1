@@ -152,7 +152,7 @@ async function publishVideo(page, text, videoPath) {
     await input.uploadFile(videoPath);
 
     log("Video subido. Procesando...");
-    await page.waitForTimeout(8000);
+    await new Promise(r => setTimeout(r, 8000));
 
     await page.waitForSelector('div[role="textbox"]');
     await page.type('div[role="textbox"]', text);
@@ -225,7 +225,7 @@ async function publishReply(page, text, imagePath = null, videoPath = null) {
         const input = await page.$('input[type="file"]');
         await input.uploadFile(videoPath);
         log("Video subido en hilo.");
-        await page.waitForTimeout(8000);
+        await new Promise(r => setTimeout(r, 8000));
     }
 
     await page.type('div[role="textbox"]', text);
@@ -300,7 +300,7 @@ async function main() {
                             if (imagePath) fs.unlinkSync(imagePath);
                             if (videoPath) fs.unlinkSync(videoPath);
 
-                            await page.waitForTimeout(2000);
+                            await new Promise(r => setTimeout(r, 2000));
 
                         } catch (err) {
                             log("ERROR PUBLICANDO TWEET DEL HILO:");
@@ -312,7 +312,7 @@ async function main() {
                 }
 
                 await markAsPublished(post.id);
-                await page.waitForTimeout(2000);
+                await new Promise(r => setTimeout(r, 2000));
 
             } catch (err) {
                 log(`ERROR PUBLICANDO POST ${post.id}:`);
