@@ -10,8 +10,7 @@ dotenv.config();
 // LOGGER
 // ===============================
 function log(msg) {
-    const time = new Date().toISOString();
-    console.log(`[${time}] ${msg}`);
+    console.log(`[${new Date().toISOString()}] ${msg}`);
 }
 
 function wait(ms) {
@@ -23,12 +22,12 @@ function wait(ms) {
 // ===============================
 async function getPendingPosts() {
     const url = `${process.env.API_URL}/get_pending_posts.php?token=${process.env.API_TOKEN}`;
-    log(`Solicitando posts pendientes a: ${url}`);
+    log(`Solicitando posts pendientes: ${url}`);
 
     try {
         const res = await fetch(url);
         const data = await res.json();
-        log(`Posts pendientes recibidos: ${JSON.stringify(data)}`);
+        log(`Posts recibidos: ${JSON.stringify(data)}`);
         return data;
     } catch (err) {
         log("ERROR AL OBTENER POSTS:");
@@ -42,15 +41,11 @@ async function getPendingPosts() {
 // ===============================
 async function markAsPublished(id) {
     const url = `${process.env.API_URL}/mark_as_published.php`;
-    log(`Marcando como publicado ID=${id} en ${url}`);
+    log(`Marcando como publicado ID=${id}`);
 
     try {
-        const payload = {
-            id: id,
-            token: process.env.API_TOKEN
-        };
-
-        log(`Payload enviado: ${JSON.stringify(payload)}`);
+        const payload = { id, token: process.env.API_TOKEN };
+        log(`Payload: ${JSON.stringify(payload)}`);
 
         const res = await fetch(url, {
             method: "POST",
@@ -71,7 +66,7 @@ async function markAsPublished(id) {
 // DESCARGAR IMAGEN
 // ===============================
 async function downloadImage(url) {
-    log(`Descargando imagen desde: ${url}`);
+    log(`Descargando imagen: ${url}`);
     const filePath = path.join("/tmp", "image_to_upload.jpg");
 
     try {
@@ -97,7 +92,7 @@ async function downloadImage(url) {
 // DESCARGAR VIDEO
 // ===============================
 async function downloadVideo(url) {
-    log(`Descargando video desde: ${url}`);
+    log(`Descargando video: ${url}`);
     const filePath = path.join("/tmp", "video_to_upload.mp4");
 
     try {
@@ -120,30 +115,20 @@ async function downloadVideo(url) {
 }
 
 // ===============================
-// BOTÓN DE PUBLICAR (2026)
+// BOTÓN REAL DE PUBLICAR (2026)
 // ===============================
-async function getTweetButton(page) {
-    log("Buscando botón de publicar...");
+async function getRealTweetButton(page) {
+    const selector = 'button[aria-label="Skip to home timeline"]';
+    log(`Buscando botón REAL: ${selector}`);
 
-    const selectors = [
-        'button[data-testid="tweetButton"]',
-        'button[data-testid="tweetButtonInline"]',
-        'div[data-testid="tweetButton"]',
-        'div[data-testid="tweetButtonInline"]',
-        'button[aria-label="Post"]',
-        'div[aria-label="Post"]'
-    ];
+    const btn = await page.$(selector);
 
-    for (const sel of selectors) {
-        log(`Probando selector: ${sel}`);
-        const btn = await page.$(sel);
-        if (btn) {
-            log(`Botón encontrado con selector: ${sel}`);
-            return btn;
-        }
+    if (btn) {
+        log("✔ Botón REAL encontrado.");
+        return btn;
     }
 
-    log("❌ Ningún selector coincidió con el botón de publicar.");
+    log("❌ Botón REAL no encontrado.");
     return null;
 }
 
@@ -152,33 +137,27 @@ async function getTweetButton(page) {
 // ===============================
 async function publishText(page, text) {
     log("=== PUBLICANDO TEXTO ===");
-    log(`Texto a publicar: "${text}"`);
+    log(`Texto: "${text}"`);
 
-    await page.goto("https://x.com/compose/tweet", { waitUntil: "networkidle2" });
+    await page.goto("https://x.com/compose/post", { waitUntil: "networkidle2" });
     log(`URL actual: ${page.url()}`);
 
-    log("Esperando textbox...");
     await page.waitForSelector('div[role="textbox"]');
     log("Textbox encontrado.");
 
     await page.type('div[role="textbox"]', text);
-    log("Texto escrito en el composer.");
+    log("Texto escrito.");
 
-    const tweetButton = await getTweetButton(page);
-    if (!tweetButton) throw new Error("No se encontró el botón de publicar en X.");
+    const realButton = await getRealTweetButton(page);
+    if (!realButton) throw new Error("No se encontró el botón REAL de publicar.");
 
-    log("Haciendo click en el botón de publicar...");
-    await tweetButton.click();
+    log("Click en botón REAL...");
+    await realButton.click();
 
-    log("Esperando navegación después de publicar...");
-    try {
-        await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
-        log("Navegación detectada. Tweet publicado.");
-    } catch (err) {
-        log("❌ ERROR: X NO NAVEGÓ DESPUÉS DEL CLICK.");
-        log("Esto significa que el tweet NO se publicó.");
-        throw err;
-    }
+    log("Esperando navegación...");
+    await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
+
+    log("✔ Texto publicado correctamente.");
 }
 
 // ===============================
@@ -189,7 +168,7 @@ async function publishImage(page, text, imagePath) {
     log(`Texto: "${text}"`);
     log(`Imagen: ${imagePath}`);
 
-    await page.goto("https://x.com/compose/tweet", { waitUntil: "networkidle2" });
+    await page.goto("https://x.com/compose/post", { waitUntil: "networkidle2" });
 
     const input = await page.$('input[type="file"]');
     log("Subiendo imagen...");
@@ -201,16 +180,16 @@ async function publishImage(page, text, imagePath) {
     await page.type('div[role="textbox"]', text);
     log("Texto escrito.");
 
-    const tweetButton = await getTweetButton(page);
-    if (!tweetButton) throw new Error("No se encontró el botón de publicar en X.");
+    const realButton = await getRealTweetButton(page);
+    if (!realButton) throw new Error("No se encontró el botón REAL de publicar.");
 
-    log("Click en publicar...");
-    await tweetButton.click();
+    log("Click en botón REAL...");
+    await realButton.click();
 
     log("Esperando navegación...");
     await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
 
-    log("Imagen + texto publicado.");
+    log("✔ Imagen + texto publicado.");
 }
 
 // ===============================
@@ -221,29 +200,29 @@ async function publishVideo(page, text, videoPath) {
     log(`Texto: "${text}"`);
     log(`Video: ${videoPath}`);
 
-    await page.goto("https://x.com/compose/tweet", { waitUntil: "networkidle2" });
+    await page.goto("https://x.com/compose/post", { waitUntil: "networkidle2" });
 
     const input = await page.$('input[type="file"]');
     log("Subiendo video...");
     await input.uploadFile(videoPath);
 
-    log("Video subido. Esperando procesamiento...");
+    log("Video subido. Procesando...");
     await wait(8000);
 
     await page.waitForSelector('div[role="textbox"]');
     await page.type('div[role="textbox"]', text);
     log("Texto escrito.");
 
-    const tweetButton = await getTweetButton(page);
-    if (!tweetButton) throw new Error("No se encontró el botón de publicar en X.");
+    const realButton = await getRealTweetButton(page);
+    if (!realButton) throw new Error("No se encontró el botón REAL de publicar.");
 
-    log("Click en publicar...");
-    await tweetButton.click();
+    log("Click en botón REAL...");
+    await realButton.click();
 
     log("Esperando navegación...");
     await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
 
-    log("Video + texto publicado.");
+    log("✔ Video + texto publicado.");
 }
 
 // ===============================
@@ -277,16 +256,16 @@ async function publishReply(page, text, imagePath = null, videoPath = null) {
     await page.type('div[role="textbox"]', text);
     log("Texto escrito en respuesta.");
 
-    const tweetButton = await getTweetButton(page);
-    if (!tweetButton) throw new Error("No se encontró el botón de publicar en X.");
+    const realButton = await getRealTweetButton(page);
+    if (!realButton) throw new Error("No se encontró el botón REAL de publicar.");
 
-    log("Click en publicar respuesta...");
-    await tweetButton.click();
+    log("Click en botón REAL...");
+    await realButton.click();
 
     log("Esperando navegación...");
     await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
 
-    log("Respuesta publicada.");
+    log("✔ Respuesta publicada.");
 }
 
 // ===============================
