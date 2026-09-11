@@ -33,7 +33,7 @@ async function getPendingPosts() {
 }
 
 // ===============================
-// MARCAR COMO PUBLICADO
+// MARCAR COMO PUBLICADO (ELIMINAR)
 // ===============================
 async function markAsPublished(id) {
     try {
@@ -119,8 +119,8 @@ async function publishText(page, text) {
     await page.waitForSelector('button[data-testid="tweetButton"]');
     await page.click('button[data-testid="tweetButton"]');
 
-    // ESPERAR A QUE X PUBLIQUE DE VERDAD
-    await new Promise(r => setTimeout(r, 4000));
+    // ESPERAR NAVEGACIÓN REAL
+    await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
 
     log("Texto publicado correctamente.");
 }
@@ -144,7 +144,7 @@ async function publishImage(page, text, imagePath) {
     await page.waitForSelector('button[data-testid="tweetButton"]');
     await page.click('button[data-testid="tweetButton"]');
 
-    await new Promise(r => setTimeout(r, 4000));
+    await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
 
     log("Imagen + texto publicado correctamente.");
 }
@@ -169,7 +169,7 @@ async function publishVideo(page, text, videoPath) {
     await page.waitForSelector('button[data-testid="tweetButton"]');
     await page.click('button[data-testid="tweetButton"]');
 
-    await new Promise(r => setTimeout(r, 4000));
+    await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
 
     log("Video + texto publicado correctamente.");
 }
@@ -203,7 +203,7 @@ async function publishReply(page, text, imagePath = null, videoPath = null) {
     await page.waitForSelector('button[data-testid="tweetButton"]');
     await page.click('button[data-testid="tweetButton"]');
 
-    await new Promise(r => setTimeout(r, 4000));
+    await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
 
     log("Respuesta publicada.");
 }
