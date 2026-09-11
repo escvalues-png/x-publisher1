@@ -37,16 +37,20 @@ async function getPendingPosts() {
 // ===============================
 async function markAsPublished(id) {
     try {
+        const payload = {
+            id: id,
+            token: process.env.API_TOKEN
+        };
+
+        log("Marcando como publicado con:", JSON.stringify(payload));
+
         const res = await fetch(`${process.env.API_URL}/update_post_status.php`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                id: id,
-                token: process.env.API_TOKEN
-            })
+            body: JSON.stringify(payload)
         });
 
-        const text = await res.text();   // ← CAMBIO IMPORTANTE
+        const text = await res.text();
         log(`Post ${id} marcado como publicado. Respuesta: ${text}`);
 
     } catch (err) {
@@ -115,6 +119,9 @@ async function publishText(page, text) {
     await page.waitForSelector('button[data-testid="tweetButton"]');
     await page.click('button[data-testid="tweetButton"]');
 
+    // ESPERAR A QUE X PUBLIQUE DE VERDAD
+    await new Promise(r => setTimeout(r, 4000));
+
     log("Texto publicado correctamente.");
 }
 
@@ -136,6 +143,8 @@ async function publishImage(page, text, imagePath) {
 
     await page.waitForSelector('button[data-testid="tweetButton"]');
     await page.click('button[data-testid="tweetButton"]');
+
+    await new Promise(r => setTimeout(r, 4000));
 
     log("Imagen + texto publicado correctamente.");
 }
@@ -160,48 +169,9 @@ async function publishVideo(page, text, videoPath) {
     await page.waitForSelector('button[data-testid="tweetButton"]');
     await page.click('button[data-testid="tweetButton"]');
 
+    await new Promise(r => setTimeout(r, 4000));
+
     log("Video + texto publicado correctamente.");
-}
-
-// ===============================
-// PUBLICAR ENCUESTA (ACTUALIZADO 2026)
-// ===============================
-async function publishPoll(page, text, poll) {
-    log("Publicando encuesta...");
-
-    await page.goto("https://x.com/compose/tweet", { waitUntil: "networkidle2" });
-
-    await page.waitForSelector('div[role="textbox"]');
-    await page.type('div[role="textbox"]', text);
-
-    // NUEVO SELECTOR 2026
-    let pollButton = await page.$('div[data-testid="addPoll"]');
-
-    if (!pollButton) {
-        pollButton = await page.$('button[data-testid="addPoll"]');
-    }
-
-    if (!pollButton) {
-        throw new Error("No se encontró el botón de encuesta en X.");
-    }
-
-    await pollButton.click();
-
-    // Rellenar opciones
-    for (let i = 0; i < poll.options.length; i++) {
-        await page.waitForSelector(`input[data-testid="pollOption${i}"]`);
-        await page.type(`input[data-testid="pollOption${i}"]`, poll.options[i]);
-    }
-
-    // Duración
-    await page.waitForSelector('select[data-testid="pollDuration"]');
-    await page.select('select[data-testid="pollDuration"]', poll.duration.toString());
-
-    // Publicar
-    await page.waitForSelector('button[data-testid="tweetButton"]');
-    await page.click('button[data-testid="tweetButton"]');
-
-    log("Encuesta publicada correctamente.");
 }
 
 // ===============================
@@ -232,6 +202,8 @@ async function publishReply(page, text, imagePath = null, videoPath = null) {
 
     await page.waitForSelector('button[data-testid="tweetButton"]');
     await page.click('button[data-testid="tweetButton"]');
+
+    await new Promise(r => setTimeout(r, 4000));
 
     log("Respuesta publicada.");
 }
@@ -267,10 +239,7 @@ async function main() {
             try {
                 log(`Publicando post ID ${post.id}`);
 
-                if (post.poll) {
-                    await publishPoll(page, post.text, post.poll);
-
-                } else if (post.video_url) {
+                if (post.video_url) {
                     const videoPath = await downloadVideo(post.video_url);
                     await publishVideo(page, post.text, videoPath);
                     fs.unlinkSync(videoPath);
